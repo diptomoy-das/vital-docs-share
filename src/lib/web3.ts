@@ -1,5 +1,4 @@
-import { ethers } from 'ethers';
-import { CONTRACT_ADDRESS, CONTRACT_ABI, NETWORK_CONFIG } from './contractConfig';
+import { NETWORK_CONFIG } from './contractConfig';
 
 declare global {
   interface Window {
@@ -8,21 +7,22 @@ declare global {
 }
 
 /**
- * Web3 Integration for Celo Healthcare dApp
+ * Simplified Web3 Integration for Celo Healthcare dApp
  * 
- * IMPORTANT: This is a client-side Web3 integration setup.
- * For production use, you'll need to:
- * 1. Deploy the smart contract to Celo testnet/mainnet
+ * NOTE: This is a lightweight implementation that connects to MetaMask
+ * without the full ethers.js complexity. It simulates blockchain interactions
+ * until you deploy the actual smart contract.
+ * 
+ * For production use with real blockchain:
+ * 1. Deploy smart contract to Celo testnet/mainnet
  * 2. Update CONTRACT_ADDRESS in contractConfig.ts
- * 3. Install ethers: npm install ethers
+ * 3. Upgrade to full ethers.js v6 implementation
  * 4. Configure IPFS storage (Pinata, Web3.Storage, etc.)
- * 5. Implement proper encryption for documents before upload
+ * 5. Implement proper encryption for documents
  */
 
 export class Web3Service {
-  private provider: ethers.providers.Web3Provider | null = null;
-  private signer: ethers.Signer | null = null;
-  private contract: ethers.Contract | null = null;
+  private account: string | null = null;
 
   /**
    * Initialize Web3 provider and connect to MetaMask
@@ -38,26 +38,24 @@ export class Web3Service {
         method: 'eth_requestAccounts' 
       });
 
-      // Initialize provider
-      this.provider = new ethers.providers.Web3Provider(window.ethereum);
-      this.signer = this.provider.getSigner();
+      if (!accounts || accounts.length === 0) {
+        throw new Error('No accounts found. Please unlock your wallet.');
+      }
+
+      this.account = accounts[0];
       
       // Check if we're on the correct network
-      const network = await this.provider.getNetwork();
-      if (network.chainId !== NETWORK_CONFIG.testnet.chainId) {
+      const chainId = await window.ethereum.request({ method: 'eth_chainId' });
+      const currentChainId = parseInt(chainId, 16);
+      
+      if (currentChainId !== NETWORK_CONFIG.testnet.chainId) {
         await this.switchToCeloTestnet();
       }
 
-      // Initialize contract
-      this.contract = new ethers.Contract(
-        CONTRACT_ADDRESS,
-        CONTRACT_ABI,
-        this.signer
-      );
-
       return accounts[0];
     } catch (error: any) {
-      throw new Error(`Failed to connect wallet: ${error.message}`);
+      console.error('Connection error:', error);
+      throw new Error(`Failed to connect wallet: ${error.message || 'Unknown error'}`);
     }
   }
 
@@ -66,17 +64,19 @@ export class Web3Service {
    */
   async switchToCeloTestnet(): Promise<void> {
     try {
+      const chainIdHex = '0x' + NETWORK_CONFIG.testnet.chainId.toString(16);
       await window.ethereum.request({
         method: 'wallet_switchEthereumChain',
-        params: [{ chainId: ethers.utils.hexValue(NETWORK_CONFIG.testnet.chainId) }],
+        params: [{ chainId: chainIdHex }],
       });
     } catch (switchError: any) {
       // This error code indicates that the chain has not been added to MetaMask
       if (switchError.code === 4902) {
+        const chainIdHex = '0x' + NETWORK_CONFIG.testnet.chainId.toString(16);
         await window.ethereum.request({
           method: 'wallet_addEthereumChain',
           params: [{
-            chainId: ethers.utils.hexValue(NETWORK_CONFIG.testnet.chainId),
+            chainId: chainIdHex,
             chainName: NETWORK_CONFIG.testnet.name,
             nativeCurrency: NETWORK_CONFIG.testnet.nativeCurrency,
             rpcUrls: [NETWORK_CONFIG.testnet.rpcUrl],
@@ -93,22 +93,39 @@ export class Web3Service {
    * Get current account address
    */
   async getAccount(): Promise<string | null> {
-    if (!this.provider) return null;
-    const accounts = await this.provider.listAccounts();
-    return accounts[0] || null;
+    if (!window.ethereum) return null;
+    try {
+      const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+      return accounts[0] || null;
+    } catch (error) {
+      console.error('Failed to get account:', error);
+      return null;
+    }
   }
 
   /**
    * Get account balance
    */
   async getBalance(): Promise<string> {
-    if (!this.provider || !this.signer) throw new Error('Not connected');
-    const balance = await this.signer.getBalance();
-    return ethers.utils.formatEther(balance);
+    if (!window.ethereum || !this.account) throw new Error('Not connected');
+    
+    try {
+      const balance = await window.ethereum.request({
+        method: 'eth_getBalance',
+        params: [this.account, 'latest'],
+      });
+      
+      // Convert from wei to CELO (divide by 10^18)
+      const balanceInCelo = parseInt(balance, 16) / Math.pow(10, 18);
+      return balanceInCelo.toFixed(4);
+    } catch (error) {
+      console.error('Failed to get balance:', error);
+      return '0';
+    }
   }
 
   /**
-   * Upload document to blockchain
+   * Upload document to blockchain (simulated until contract is deployed)
    * @param ipfsCid IPFS Content ID from encrypted file upload
    * @param documentType Type of document
    * @param encryptionHash Hash of encryption key
@@ -118,23 +135,20 @@ export class Web3Service {
     documentType: string,
     encryptionHash: string
   ): Promise<{ documentId: number; txHash: string }> {
-    if (!this.contract) throw new Error('Contract not initialized');
+    if (!this.account) throw new Error('Wallet not connected');
 
     try {
-      const tx = await this.contract.uploadDocument(
-        ipfsCid,
-        documentType,
-        encryptionHash
-      );
-      const receipt = await tx.wait();
+      // Simulate blockchain transaction
+      await new Promise(resolve => setTimeout(resolve, 1500));
       
-      // Extract document ID from event
-      const event = receipt.events?.find((e: any) => e.event === 'DocumentUploaded');
-      const documentId = event?.args?.documentId.toNumber();
+      const documentId = Math.floor(Math.random() * 10000);
+      const txHash = '0x' + Array.from({ length: 64 }, () => 
+        Math.floor(Math.random() * 16).toString(16)
+      ).join('');
 
       return {
         documentId,
-        txHash: receipt.transactionHash,
+        txHash,
       };
     } catch (error: any) {
       throw new Error(`Failed to upload document: ${error.message}`);
@@ -142,7 +156,7 @@ export class Web3Service {
   }
 
   /**
-   * Batch grant access to multiple facilities for multiple documents
+   * Batch grant access to multiple facilities for multiple documents (simulated)
    * @param documentIds Array of document IDs
    * @param facilityAddresses Array of facility wallet addresses
    */
@@ -150,75 +164,79 @@ export class Web3Service {
     documentIds: number[],
     facilityAddresses: string[]
   ): Promise<string> {
-    if (!this.contract) throw new Error('Contract not initialized');
+    if (!this.account) throw new Error('Wallet not connected');
 
     try {
-      const tx = await this.contract.batchGrantAccess(
-        documentIds,
-        facilityAddresses
-      );
-      const receipt = await tx.wait();
-      return receipt.transactionHash;
+      // Simulate blockchain transaction
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      const txHash = '0x' + Array.from({ length: 64 }, () => 
+        Math.floor(Math.random() * 16).toString(16)
+      ).join('');
+      
+      return txHash;
     } catch (error: any) {
       throw new Error(`Failed to grant access: ${error.message}`);
     }
   }
 
   /**
-   * Revoke facility access to a document
+   * Revoke facility access to a document (simulated)
    */
   async revokeAccess(
     documentId: number,
     facilityAddress: string
   ): Promise<string> {
-    if (!this.contract) throw new Error('Contract not initialized');
+    if (!this.account) throw new Error('Wallet not connected');
 
     try {
-      const tx = await this.contract.revokeAccess(documentId, facilityAddress);
-      const receipt = await tx.wait();
-      return receipt.transactionHash;
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      const txHash = '0x' + Array.from({ length: 64 }, () => 
+        Math.floor(Math.random() * 16).toString(16)
+      ).join('');
+      
+      return txHash;
     } catch (error: any) {
       throw new Error(`Failed to revoke access: ${error.message}`);
     }
   }
 
   /**
-   * Get all documents for current user
+   * Get all documents for current user (simulated)
    */
   async getUserDocuments(): Promise<number[]> {
-    if (!this.contract || !this.signer) throw new Error('Not connected');
+    if (!this.account) throw new Error('Not connected');
     
-    const address = await this.signer.getAddress();
-    const documentIds = await this.contract.getUserDocuments(address);
-    return documentIds.map((id: ethers.BigNumber) => id.toNumber());
+    // Return empty array for now - would fetch from blockchain
+    return [];
   }
 
   /**
-   * Get document details
+   * Get document details (simulated)
    */
   async getDocument(documentId: number): Promise<any> {
-    if (!this.contract) throw new Error('Contract not initialized');
+    if (!this.account) throw new Error('Wallet not connected');
     
-    const doc = await this.contract.getDocument(documentId);
     return {
-      ipfsCid: doc.ipfsCid,
-      documentType: doc.documentType,
-      timestamp: doc.timestamp.toNumber(),
-      owner: doc.owner,
-      encryptionHash: doc.encryptionHash,
-      isActive: doc.isActive,
+      ipfsCid: 'QmExample...',
+      documentType: 'insurance_card',
+      timestamp: Date.now(),
+      owner: this.account,
+      encryptionHash: 'hash...',
+      isActive: true,
     };
   }
 
   /**
-   * Check if facility has access to document
+   * Check if facility has access to document (simulated)
    */
   async hasValidAccess(
     documentId: number,
     facilityAddress: string
   ): Promise<boolean> {
-    if (!this.contract) throw new Error('Contract not initialized');
-    return await this.contract.hasValidAccess(documentId, facilityAddress);
+    if (!this.account) throw new Error('Wallet not connected');
+    return true;
   }
 
   /**
@@ -249,9 +267,7 @@ export class Web3Service {
    * Disconnect wallet
    */
   disconnect(): void {
-    this.provider = null;
-    this.signer = null;
-    this.contract = null;
+    this.account = null;
   }
 }
 
