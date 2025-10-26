@@ -5,7 +5,7 @@ import { FacilitySelector } from '@/components/FacilitySelector';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { FileText, Building2, History, Shield, Blocks, Key, Send } from 'lucide-react';
+import { FileText, Building2, History, Shield, Blocks, Key, Send, ExternalLink, AlertCircle } from 'lucide-react';
 
 const Index = () => {
   const [isConnected, setIsConnected] = useState(false);
@@ -252,49 +252,71 @@ const Index = () => {
                       </p>
                     </div>
                   ) : (
-                    <div className="space-y-3">
-                      {transactionHistory.map((tx) => (
-                        <div
-                          key={tx.id}
-                          className="border border-border rounded-lg p-4 hover:border-primary/50 transition-smooth bg-gradient-card"
-                        >
-                          <div className="flex items-start justify-between mb-3">
-                            <div className="flex items-center gap-2">
-                              <div className="w-8 h-8 rounded-lg gradient-primary flex items-center justify-center">
-                                <Send className="h-4 w-4 text-white" />
+                    <>
+                      <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-3 mb-4 flex items-start gap-2">
+                        <AlertCircle className="h-4 w-4 text-yellow-500 mt-0.5 flex-shrink-0" />
+                        <div className="text-xs">
+                          <p className="font-medium text-yellow-600 dark:text-yellow-500 mb-1">
+                            Demo Mode - Simulated Transactions
+                          </p>
+                          <p className="text-muted-foreground">
+                            These are mock transactions. To see real blockchain transactions, deploy the smart contract to Celo network.
+                          </p>
+                        </div>
+                      </div>
+                      <div className="space-y-3">
+                        {transactionHistory.map((tx) => (
+                          <div
+                            key={tx.id}
+                            className="border border-border rounded-lg p-4 hover:border-primary/50 transition-smooth bg-gradient-card"
+                          >
+                            <div className="flex items-start justify-between mb-3">
+                              <div className="flex items-center gap-2">
+                                <div className="w-8 h-8 rounded-lg gradient-primary flex items-center justify-center">
+                                  <Send className="h-4 w-4 text-white" />
+                                </div>
+                                <div>
+                                  <p className="text-sm font-medium">Access Granted</p>
+                                  <p className="text-xs text-muted-foreground">
+                                    {new Date(tx.timestamp).toLocaleString()}
+                                  </p>
+                                </div>
+                              </div>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 text-xs gap-1"
+                                onClick={() => window.open(`https://alfajores.celoscan.io/tx/${tx.txHash}`, '_blank')}
+                              >
+                                View on Explorer
+                                <ExternalLink className="h-3 w-3" />
+                              </Button>
+                            </div>
+
+                            <div className="space-y-2 text-xs">
+                              <div>
+                                <span className="text-muted-foreground">Documents: </span>
+                                <span className="font-mono text-foreground">
+                                  {tx.documentIds.join(', ')}
+                                </span>
                               </div>
                               <div>
-                                <p className="text-sm font-medium">Access Granted</p>
-                                <p className="text-xs text-muted-foreground">
-                                  {new Date(tx.timestamp).toLocaleString()}
-                                </p>
+                                <span className="text-muted-foreground">Facilities: </span>
+                                <span className="text-foreground">
+                                  {tx.facilityNames.join(', ')}
+                                </span>
+                              </div>
+                              <div className="flex items-start gap-1">
+                                <span className="text-muted-foreground">Transaction: </span>
+                                <span className="font-mono text-foreground break-all">
+                                  {tx.txHash}
+                                </span>
                               </div>
                             </div>
                           </div>
-
-                          <div className="space-y-2 text-xs">
-                            <div>
-                              <span className="text-muted-foreground">Documents: </span>
-                              <span className="font-mono text-foreground">
-                                {tx.documentIds.join(', ')}
-                              </span>
-                            </div>
-                            <div>
-                              <span className="text-muted-foreground">Facilities: </span>
-                              <span className="text-foreground">
-                                {tx.facilityNames.join(', ')}
-                              </span>
-                            </div>
-                            <div>
-                              <span className="text-muted-foreground">Transaction: </span>
-                              <span className="font-mono text-foreground break-all">
-                                {tx.txHash}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+                        ))}
+                      </div>
+                    </>
                   )}
                 </CardContent>
               </Card>
