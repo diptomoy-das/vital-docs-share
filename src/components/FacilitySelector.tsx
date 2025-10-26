@@ -7,6 +7,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Building2, Search, Send, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { web3Service } from '@/lib/web3';
 
 // Mock facilities - in production, fetch from database
 const MOCK_FACILITIES = [
@@ -98,19 +99,12 @@ export const FacilitySelector = ({ selectedDocuments, onSubmit, onAccessGranted 
         (id) => MOCK_FACILITIES.find((f) => f.id === id)?.name || ''
       );
 
-      // Simulate blockchain transaction
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-
-      // Generate mock transaction hash
-      const txHash = '0x' + Array.from({ length: 64 }, () =>
-        Math.floor(Math.random() * 16).toString(16)
-      ).join('');
+      const txHash = await web3Service.batchGrantAccess(selectedDocuments, addresses);
 
       toast.success('Access granted successfully', {
         description: `Documents shared with ${selectedFacilities.size} facilities in a single transaction`,
       });
 
-      // Notify parent component
       onAccessGranted?.({
         documentIds: selectedDocuments,
         facilityNames,
