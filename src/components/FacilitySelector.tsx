@@ -45,9 +45,14 @@ const MOCK_FACILITIES = [
 interface FacilitySelectorProps {
   selectedDocuments: number[];
   onSubmit?: (facilityAddresses: string[]) => void;
+  onAccessGranted?: (data: {
+    documentIds: number[];
+    facilityNames: string[];
+    txHash: string;
+  }) => void;
 }
 
-export const FacilitySelector = ({ selectedDocuments, onSubmit }: FacilitySelectorProps) => {
+export const FacilitySelector = ({ selectedDocuments, onSubmit, onAccessGranted }: FacilitySelectorProps) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFacilities, setSelectedFacilities] = useState<Set<string>>(new Set());
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -85,15 +90,31 @@ export const FacilitySelector = ({ selectedDocuments, onSubmit }: FacilitySelect
 
     setIsSubmitting(true);
     try {
-      const addresses = Array.from(selectedFacilities).map(
+      const selectedFacilityIds = Array.from(selectedFacilities);
+      const addresses = selectedFacilityIds.map(
         (id) => MOCK_FACILITIES.find((f) => f.id === id)?.address || ''
+      );
+      const facilityNames = selectedFacilityIds.map(
+        (id) => MOCK_FACILITIES.find((f) => f.id === id)?.name || ''
       );
 
       // Simulate blockchain transaction
       await new Promise((resolve) => setTimeout(resolve, 2000));
 
+      // Generate mock transaction hash
+      const txHash = '0x' + Array.from({ length: 64 }, () =>
+        Math.floor(Math.random() * 16).toString(16)
+      ).join('');
+
       toast.success('Access granted successfully', {
         description: `Documents shared with ${selectedFacilities.size} facilities in a single transaction`,
+      });
+
+      // Notify parent component
+      onAccessGranted?.({
+        documentIds: selectedDocuments,
+        facilityNames,
+        txHash,
       });
 
       onSubmit?.(addresses);

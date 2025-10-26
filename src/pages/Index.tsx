@@ -5,7 +5,7 @@ import { FacilitySelector } from '@/components/FacilitySelector';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { FileText, Building2, History, Shield, Blocks, Key } from 'lucide-react';
+import { FileText, Building2, History, Shield, Blocks, Key, Send } from 'lucide-react';
 
 const Index = () => {
   const [isConnected, setIsConnected] = useState(false);
@@ -14,6 +14,15 @@ const Index = () => {
     Array<{ id: number; ipfsCid: string; type: string; timestamp: number }>
   >([]);
   const [selectedDocuments, setSelectedDocuments] = useState<number[]>([]);
+  const [transactionHistory, setTransactionHistory] = useState<
+    Array<{
+      id: string;
+      timestamp: number;
+      documentIds: number[];
+      facilityNames: string[];
+      txHash: string;
+    }>
+  >([]);
 
   const handleWalletConnect = (address: string) => {
     setIsConnected(true);
@@ -37,6 +46,21 @@ const Index = () => {
         timestamp: Date.now(),
       },
     ]);
+  };
+
+  const handleAccessGranted = (data: {
+    documentIds: number[];
+    facilityNames: string[];
+    txHash: string;
+  }) => {
+    const transaction = {
+      id: `tx-${Date.now()}`,
+      timestamp: Date.now(),
+      documentIds: data.documentIds,
+      facilityNames: data.facilityNames,
+      txHash: data.txHash,
+    };
+    setTransactionHistory((prev) => [transaction, ...prev]);
   };
 
   const toggleDocumentSelection = (documentId: number) => {
@@ -206,7 +230,10 @@ const Index = () => {
             </TabsContent>
 
             <TabsContent value="share">
-              <FacilitySelector selectedDocuments={selectedDocuments} />
+              <FacilitySelector
+                selectedDocuments={selectedDocuments}
+                onAccessGranted={handleAccessGranted}
+              />
             </TabsContent>
 
             <TabsContent value="history">
@@ -216,13 +243,59 @@ const Index = () => {
                   <CardDescription>View your document sharing history and access logs</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-center py-12">
-                    <History className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
-                    <p className="text-sm text-muted-foreground">No transactions yet</p>
-                    <p className="text-xs text-muted-foreground mt-2">
-                      Share documents with facilities to see history here
-                    </p>
-                  </div>
+                  {transactionHistory.length === 0 ? (
+                    <div className="text-center py-12">
+                      <History className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
+                      <p className="text-sm text-muted-foreground">No transactions yet</p>
+                      <p className="text-xs text-muted-foreground mt-2">
+                        Share documents with facilities to see history here
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {transactionHistory.map((tx) => (
+                        <div
+                          key={tx.id}
+                          className="border border-border rounded-lg p-4 hover:border-primary/50 transition-smooth bg-gradient-card"
+                        >
+                          <div className="flex items-start justify-between mb-3">
+                            <div className="flex items-center gap-2">
+                              <div className="w-8 h-8 rounded-lg gradient-primary flex items-center justify-center">
+                                <Send className="h-4 w-4 text-white" />
+                              </div>
+                              <div>
+                                <p className="text-sm font-medium">Access Granted</p>
+                                <p className="text-xs text-muted-foreground">
+                                  {new Date(tx.timestamp).toLocaleString()}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="space-y-2 text-xs">
+                            <div>
+                              <span className="text-muted-foreground">Documents: </span>
+                              <span className="font-mono text-foreground">
+                                {tx.documentIds.join(', ')}
+                              </span>
+                            </div>
+                            <div>
+                              <span className="text-muted-foreground">Facilities: </span>
+                              <span className="text-foreground">
+                                {tx.facilityNames.join(', ')}
+                              </span>
+                            </div>
+                            <div>
+                              <span className="text-muted-foreground">Transaction: </span>
+                              <span className="font-mono text-foreground break-all">
+                                {tx.txHash}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>
